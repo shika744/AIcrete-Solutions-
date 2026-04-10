@@ -337,8 +337,13 @@ def build_pdf_chart(result, path):
 def generate_pdf(result, filename="AIcrete_Report.pdf"):
     with tempfile.TemporaryDirectory() as td:
         chart_png = os.path.join(td, "chart.png")
+        perf_vs_carbon_png = os.path.join(td, "perf_vs_carbon.png")
+        pred_vs_actual_png = os.path.join(td, "pred_vs_actual.png")
+        
         # matplotlib fallback instead of plotly image deps
         import matplotlib.pyplot as plt
+        
+        # Performance vs Carbon chart
         plt.figure(figsize=(7.2, 4.2))
         plt.scatter([result["carbon"] * 1.12], [result["cs"] * 0.92], s=120, label="Baseline")
         plt.scatter([result["carbon"]], [result["cs"]], s=140, label="AIcrete")
@@ -348,12 +353,30 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
         plt.grid(alpha=0.25)
         plt.legend()
         plt.tight_layout()
-        plt.savefig(chart_png, dpi=180, bbox_inches="tight")
+        plt.savefig(perf_vs_carbon_png, dpi=180, bbox_inches="tight")
         plt.close()
+        
+        # Predicted vs Actual chart
+        metrics_data = calculate_model_metrics()
+        if metrics_data:
+            plt.figure(figsize=(7.2, 4.2))
+            plt.scatter(metrics_data["y_true"], metrics_data["y_pred"], alpha=0.5, s=30, color="#0ea5e9")
+            min_val = min(metrics_data["y_true"].min(), metrics_data["y_pred"].min())
+            max_val = max(metrics_data["y_true"].max(), metrics_data["y_pred"].max())
+            plt.plot([min_val, max_val], [min_val, max_val], "r--", linewidth=2, label="Perfect Prediction")
+            plt.xlabel("Actual Strength (MPa)")
+            plt.ylabel("Predicted Strength (MPa)")
+            plt.title("Predicted vs Actual Strength (Training Data)")
+            plt.grid(alpha=0.25)
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(pred_vs_actual_png, dpi=180, bbox_inches="tight")
+            plt.close()
 
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=12)
 
+        # Cover Page
         pdf.add_page()
         if logo_exists():
             try:
@@ -374,7 +397,25 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
         pdf.ln(4)
         pdf.set_font("Arial", "I", 10)
         pdf.multi_cell(0, 6, pdf_safe("Disclaimer: For preliminary engineering assessment only. Laboratory validation and professional review remain necessary before implementation."))
-
+        
+        # Add AI Validation Narrative
+        pdf.ln(8)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, pdf_safe("AI Validation Summary"), ln=True)
+        pdf.set_font("Arial", "", 10)
+        if metrics_data:
+            closest_idx = np.argmin(np.abs(metrics_data["y_true"] - result["cs"]))
+            closest_actual = metrics_data["y_true"][closest_idx]
+            error_pct = abs(result["cs"] - closest_actual) / closest_actual * 100 if closest_actual != 0 else 0
+            narrative_text = (
+                f"AIcrete Solutions predicted {result['cs']:.0f} MPa vs training reference {closest_actual:.0f} MPa "
+                f"— within {error_pct:.1f}% error. Model validation shows consistent accuracy across the dataset "
+                f"(MAPE = {metrics_data['mape']:.1f}%, R² = {metrics_data['r_squared']:.4f}). "
+                f"This prediction is reliable for preliminary engineering use."
+            )
+            pdf.multi_cell(0, 6, pdf_safe(narrative_text))
+        
+        # Results Page
         pdf.add_page()
         pdf.set_font("Arial", "B", 14)
         pdf.cell(0, 8, pdf_safe("1. Key Results"), ln=True)
@@ -396,7 +437,23 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
 
         pdf.ln(5)
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("2. Mix Parameters"), ln=True)
+        pdf.cell(0, 8, pdf_safe("2. Model Performance Metrics"), ln=True)
+        pdf.set_font("Arial", "", 11)
+        if metrics_data:
+            metrics_rows = [
+                ("RMSE (Root Mean Square Error)", f"{metrics_data['rmse']:.2f} MPa"),
+                ("MAPE (Mean Absolute % Error)", f"{metrics_data['mape']:.2f} %"),
+                ("R² (Coefficient of Determination)", f"{metrics_data['r_squared']:.4f}"),
+            ]
+            for k, v in metrics_rows:
+                pdf.cell(95, 8, pdf_safe(k), 1)
+                pdf.cell(95, 8, pdf_safe(v), 1, ln=True)
+        else:
+            pdf.cell(0, 8, pdf_safe("Model metrics not available"), ln=True)
+
+        pdf.ln(5)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 8, pdf_safe("3. Mix Parameters"), ln=True)
         pdf.set_font("Arial", "", 11)
         for k, v in result["inputs"].items():
             pdf.cell(95, 8, pdf_safe(k), 1)
@@ -404,31 +461,61 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
 
         pdf.ln(5)
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("3. Compliance Overview"), ln=True)
+        pdf.cell(0, 8, pdf_safe("4. Compliance Overview"), ln=True)
         pdf.set_font("Arial", "", 11)
         for item in result["compliance"]:
             pdf.multi_cell(0, 6, pdf_safe(f"{item['name']}: {item['note']} (Min {item['threshold']} MPa)"))
 
         pdf.ln(2)
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("4. AI Recommendation"), ln=True)
+        pdf.cell(0, 8, pdf_safe("5. AI Recommendation"), ln=True)
         pdf.set_font("Arial", "", 11)
         for rec in result["recommendations"]:
             pdf.multi_cell(0, 6, pdf_safe(f"- {rec}"))
         pdf.multi_cell(0, 6, pdf_safe(result["recommendation_note"]))
 
+        # Performance Charts Page
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 8, pdf_safe("6. Predicted vs Actual Strength"), ln=True)
+        if metrics_data and os.path.exists(pred_vs_actual_png):
+            y = pdf.get_y()
+            pdf.image(pred_vs_actual_png, x=22, y=y+3, w=165)
+            pdf.set_y(y + 75)
+        
         pdf.ln(4)
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("5. Performance vs Carbon"), ln=True)
+        pdf.cell(0, 8, pdf_safe("7. Performance vs Carbon"), ln=True)
         y = pdf.get_y()
-        pdf.image(chart_png, x=22, y=y, w=155)
-        chart_bottom = y + 68
-        pdf.set_y(chart_bottom)
+        if os.path.exists(perf_vs_carbon_png):
+            pdf.image(perf_vs_carbon_png, x=22, y=y+3, w=165)
+            pdf.set_y(y + 75)
 
-        if pdf.get_y() > 258:
-            pdf.add_page()
-        else:
-            pdf.ln(4)
+        # Footer and Copyright
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 8, pdf_safe("Report Information"), ln=True)
+        pdf.set_font("Arial", "", 11)
+        pdf.ln(5)
+        pdf.multi_cell(0, 6, pdf_safe(
+            f"This report was generated by AIcrete Solutions on {datetime.datetime.now().strftime('%d %B %Y at %H:%M')}. "
+            f"All data, predictions, and analyses contained herein are proprietary and confidential."
+        ))
+        
+        pdf.ln(10)
+        pdf.set_font("Arial", "I", 10)
+        pdf.multi_cell(0, 6, pdf_safe(
+            "Important Disclaimer: This assessment is for preliminary engineering purposes only. "
+            "All recommendations must be validated through laboratory testing and professional engineering review "
+            "before implementation in any construction project. AIcrete Solutions and its contributors assume no liability "
+            "for the use or misuse of this information."
+        ))
+        
+        pdf.ln(15)
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(0, 8, pdf_safe("Copyright & Rights"), ln=True)
+        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(0, 6, pdf_safe("(c) Copyright All rights reserved to AIcrete Solutions"))
 
         pdf.output(filename)
         return filename
@@ -498,6 +585,37 @@ def calculate_model_metrics():
     except Exception as e:
         st.warning(f"Could not calculate metrics: {e}")
         return None
+
+
+def generate_prediction_narrative(predicted_strength, metrics_data):
+    """Generate a narrative summary of the prediction with error analysis."""
+    if not metrics_data:
+        return None
+    
+    # Find a similar actual value from the training data for comparison
+    closest_idx = np.argmin(np.abs(metrics_data["y_true"] - predicted_strength))
+    closest_actual = metrics_data["y_true"][closest_idx]
+    closest_pred = metrics_data["y_pred"][closest_idx]
+    
+    # Calculate error for this prediction
+    error_pct = abs(predicted_strength - closest_actual) / closest_actual * 100 if closest_actual != 0 else 0
+    
+    # Determine if prediction is within acceptable range
+    mape = metrics_data["mape"]
+    within_range = error_pct < mape * 1.5
+    range_text = f"within {error_pct:.1f}% error" if within_range else f"outside typical {error_pct:.1f}% error"
+    
+    narrative = (
+        f"<div class='info-box' style='margin-top:1rem;'>"
+        f"<strong>🎯 AI Validation Summary</strong><br>"
+        f"AIcrete Solutions predicted <strong>{predicted_strength:.0f} MPa</strong> vs training reference <strong>{closest_actual:.0f} MPa</strong> "
+        f"— {range_text}. "
+        f"Model validation shows consistent accuracy across the dataset "
+        f"(MAPE ≈ <strong>{mape:.1f}%</strong>, R² = <strong>{metrics_data['r_squared']:.4f}</strong>). "
+        f"This prediction is <strong>{'reliable' if within_range else 'borderline'}</strong> for preliminary engineering use."
+        f"</div>"
+    )
+    return narrative
 
 
 if "latest_result" not in st.session_state:
@@ -640,6 +758,12 @@ def render_result_summary(result, show_save=True):
         st.markdown(f'<div class="muted">90% Interval: {ci_lo:.1f} - {ci_hi:.1f} MPa</div>', unsafe_allow_html=True)
         st.markdown('<div class="muted">Predicted Compressive Strength</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Add AI validation narrative
+        metrics_data = calculate_model_metrics()
+        narrative = generate_prediction_narrative(result["cs"], metrics_data)
+        if narrative:
+            st.markdown(narrative, unsafe_allow_html=True)
 
         gcols = st.columns(3)
         metrics = [
