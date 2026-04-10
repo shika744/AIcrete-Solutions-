@@ -759,6 +759,72 @@ div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-base
     background:#24457d !important;color:white !important;border:none !important;border-radius:10px !important;font-weight:800 !important;
 }
 button[title="Increment"], button[title="Decrement"]{display:none !important;}
+.footer-container{
+    border-top:1px solid rgba(20,40,80,0.08);
+    padding:2rem 0;
+    margin-top:3rem;
+    background:#f9fafb;
+}
+.footer-content{
+    max-width:96rem;
+    margin:0 auto;
+    padding:0 1rem;
+}
+.footer-main{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:2rem;
+    margin-bottom:1.5rem;
+}
+.footer-column{
+    display:flex;
+    flex-direction:column;
+    gap:0.5rem;
+}
+.footer-column-title{
+    font-weight:800;
+    color:#162c47;
+    font-size:0.95rem;
+    margin-bottom:0.3rem;
+}
+.footer-links{
+    display:flex;
+    gap:1.2rem;
+    flex-wrap:wrap;
+}
+.footer-link{
+    color:#718197;
+    text-decoration:none;
+    font-size:0.875rem;
+    transition:color 0.2s;
+}
+.footer-link:hover{
+    color:#0ea5e9;
+}
+.footer-divider{
+    border-top:1px solid rgba(20,40,80,0.08);
+    padding-top:1rem;
+    margin-top:1rem;
+}
+.footer-bottom{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:1rem;
+    font-size:0.84rem;
+    color:#718197;
+}
+.footer-copyright{
+    font-weight:600;
+    color:#162c47;
+}
+@media (max-width: 768px) {
+    .footer-main{flex-direction:column;align-items:flex-start;}
+    .footer-bottom{flex-direction:column;align-items:flex-start;}
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -767,10 +833,15 @@ with st.sidebar:
         st.image(LOGO_NAME, width=84)
     st.markdown("### AIcrete Solutions")
     st.caption("UHPC Intelligence Platform")
-    page = st.radio(
-        "Navigation",
-        ["Predictor", "History", "Benchmarking", "Mix Optimizer", "Sensitivity Analysis", "SHAP Analysis", "Report"]
-    )
+    
+    # Check for legal pages via query params
+    if "legal_page" in st.query_params:
+        page = st.query_params["legal_page"]
+    else:
+        page = st.radio(
+            "Navigation",
+            ["Predictor", "History", "Benchmarking", "Mix Optimizer", "Sensitivity Analysis", "SHAP Analysis", "Report"]
+        )
 
 st.markdown('<div style="height:0.55rem;"></div>', unsafe_allow_html=True)
 
@@ -1346,4 +1417,266 @@ elif page == "Report":
         render_result_summary(source, show_save=False)
     st.markdown('</div>', unsafe_allow_html=True)
 
+elif page == "Terms":
+    st.markdown('<div class="panel"><div class="panel-title">Terms of Service</div></div>', unsafe_allow_html=True)
+    st.markdown("""
+## Terms of Service
+
+**Effective Date:** April 10, 2026
+
+### 1. Acceptance of Terms
+By accessing and using AIcrete Solutions, you accept and agree to be bound by the terms and provision of this agreement.
+
+### 2. Use License
+- Permission is granted to temporarily download one copy of the materials (information or software) on AIcrete Solutions for personal, non-commercial transitory viewing only.
+- This is the grant of a license, not a transfer of title, and under this license you may not:
+  - Modify or copy the materials
+  - Use the materials for any commercial purpose or for any public display
+  - Attempt to decompile or reverse engineer any software contained on AIcrete Solutions
+  - Remove any copyright or other proprietary notations from the materials
+  - Transferring the materials to another person or "mirroring" the materials on any other server
+
+### 3. Disclaimer
+The materials on AIcrete Solutions are provided on an 'as is' basis without warranties of any kind, either expressed or implied. AIcrete Solutions disclaims all warranties, expressed or implied, including but not limited to implied warranties of merchantability and fitness for a particular purpose.
+
+### 4. Limitations
+AIcrete Solutions will not be liable for any damages in connection with the use of the materials on AIcrete Solutions, including but not limited to indirect, incidental, special, punitive or consequential damages.
+
+### 5. Accuracy of Materials
+The materials appearing on AIcrete Solutions could include technical, typographical, or photographic errors. AIcrete Solutions does not warrant that any of the materials on AIcrete Solutions are accurate, complete, or current. AIcrete Solutions may make changes to the materials contained on AIcrete Solutions at any time without notice.
+
+### 6. Links
+AIcrete Solutions has not reviewed all of the sites linked to its website and is not responsible for the contents of any such linked site. The inclusion of any link does not imply endorsement by AIcrete Solutions of the site. Use of any such linked website is at the user's own risk.
+
+### 7. Modifications
+AIcrete Solutions may revise these terms of service at any time without notice. By using this website, you are agreeing to be bound by the then current version of these terms of service.
+
+### 8. Governing Law
+These terms and conditions are governed by and construed in accordance with applicable laws where AIcrete Solutions operates, and you irrevocably submit to the exclusive jurisdiction of the courts in that location.
+
+### 9. Contact
+For any questions regarding these Terms of Service, please contact us at support@aicretesolutions.com
+    """)
+
+elif page == "Privacy":
+    st.markdown('<div class="panel"><div class="panel-title">Privacy Policy</div></div>', unsafe_allow_html=True)
+    st.markdown("""
+## Privacy Policy
+
+**Effective Date:** April 10, 2026
+
+### 1. Introduction
+AIcrete Solutions ("we," "us," "our," or "Company") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and otherwise handle your information.
+
+### 2. Information We Collect
+We may collect information about you in various ways, including:
+- **Directly from You:** When you register, input data into our system, or correspond with us
+- **Automatically:** Through cookies, log files, and similar technologies
+- **From Third Parties:** From business partners or other sources with your consent
+
+### 3. What Information We Collect
+- Contact information (name, email, company)
+- Account credentials and authentication data
+- Mix design parameters and concrete composition data
+- Usage analytics and system performance metrics
+- Device information (browser type, IP address, operating system)
+
+### 4. How We Use Information
+We use the information we collect for:
+- Providing and improving our services
+- Processing transactions and sending related information
+- Responding to inquiries and providing customer support
+- Sending marketing communications (with consent)
+- Conducting research and analytics
+- Ensuring security and fraud prevention
+- Complying with legal obligations
+
+### 5. Data Security
+AIcrete Solutions implements appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.
+
+### 6. Data Retention
+We retain your personal information for as long as necessary to provide our services and fulfill the purposes outlined in this policy, unless a longer retention period is required by law.
+
+### 7. Sharing of Information
+We do not sell your personal information. We may share information with:
+- Service providers who assist in our operations
+- Business partners (with your consent)
+- Legal authorities when required by law
+- Other parties with your explicit consent
+
+### 8. Your Rights
+Depending on your location, you may have the right to:
+- Access your personal information
+- Correct inaccurate data
+- Request deletion of your information
+- Opt-out of marketing communications
+- Data portability
+
+### 9. Cookies
+AIcrete Solutions uses cookies to enhance your experience. You can control cookie settings through your browser, though this may affect functionality.
+
+### 10. Third-Party Links
+AIcrete Solutions is not responsible for the privacy practices of external websites. We encourage you to review their privacy policies.
+
+### 11. Contact Us
+For privacy inquiries, contact: privacy@aicretesolutions.com
+    """)
+
+elif page == "Security":
+    st.markdown('<div class="panel"><div class="panel-title">Security</div></div>', unsafe_allow_html=True)
+    st.markdown("""
+## Security & Compliance
+
+**Last Updated:** April 10, 2026
+
+### 1. Security Measures
+AIcrete Solutions implements comprehensive security practices to protect your data:
+
+#### Data Protection
+- End-to-end encryption for sensitive data transmission
+- Encrypted storage for all user information
+- Regular security audits and penetration testing
+- Multi-factor authentication for account access
+
+#### Infrastructure
+- Secure cloud infrastructure with industry-standard protocols
+- Regular backups and disaster recovery procedures
+- Intrusion detection and prevention systems
+- Real-time monitoring of system activity
+
+### 2. Compliance Standards
+AIcrete Solutions complies with:
+- GDPR (General Data Protection Regulation)
+- CCPA (California Consumer Privacy Act)
+- ISO 27001 Information Security Management
+- SOC 2 Type II compliance (in progress)
+
+### 3. Access Control
+- Role-based access control (RBAC)
+- Principle of least privilege
+- Regular access reviews and audits
+- Secure password policies
+
+### 4. Incident Response
+- 24/7 security monitoring
+- Documented incident response procedures
+- Notification procedures for data breaches
+- Regular training for security protocols
+
+### 5. Third-Party Security
+- Vendor security assessments
+- Contractual security obligations
+- Regular review of third-party access
+- Data protection agreements in place
+
+### 6. User Responsibility
+Users should:
+- Maintain confidentiality of account credentials
+- Report suspicious activity immediately
+- Use strong, unique passwords
+- Enable multi-factor authentication
+
+### 7. Security Vulnerabilities
+If you discover a security vulnerability, please report it to: security@aicretesolutions.com
+
+Do not publicly disclose the vulnerability until we have had time to address it.
+
+### 8. Security Updates
+- Regular software updates and patches
+- Timely deployment of security fixes
+- System maintenance performed during off-peak hours
+- Advance notification for critical updates
+
+### 9. Contact
+For security concerns, contact: security@aicretesolutions.com
+    """)
+
+elif page == "Contact":
+    st.markdown('<div class="panel"><div class="panel-title">Contact Us</div></div>', unsafe_allow_html=True)
+    st.markdown("""
+## Get in Touch
+
+We'd love to hear from you. Whether you have questions, feedback, or partnership inquiries, feel free to reach out.
+    """)
+    
+    cols = st.columns(2)
+    with cols[0]:
+        st.markdown("### Direct Contact")
+        st.markdown("""
+**Email Support**
+- General: support@aicretesolutions.com
+- Sales: sales@aicretesolutions.com
+- Technical: tech@aicretesolutions.com
+- Security: security@aicretesolutions.com
+- Privacy: privacy@aicretesolutions.com
+
+**Office Hours**
+Monday - Friday: 9:00 AM - 5:00 PM (EST)
+        """)
+    
+    with cols[1]:
+        st.markdown("### Quick Contact Form")
+        with st.form("contact_form"):
+            name = st.text_input("Your Name", placeholder="John Doe")
+            email = st.text_input("Email Address", placeholder="you@company.com")
+            subject = st.selectbox("Subject", [
+                "Product Inquiry",
+                "Technical Support",
+                "Sales & Licensing",
+                "Partnership",
+                "Feedback",
+                "Other"
+            ])
+            message = st.text_area("Message", placeholder="Tell us what you're thinking...", height=120)
+            submitted = st.form_submit_button("Send Message", use_container_width=True)
+            if submitted:
+                if name and email and message:
+                    st.success("Thank you for your message! We'll get back to you within 24 hours.")
+                else:
+                    st.error("Please fill in all fields.")
+
 st.markdown('<div style="color:#6b7d93;font-size:0.88rem;margin-top:0.4rem;">Disclaimer: For preliminary engineering assessment only. Laboratory validation and professional review remain necessary before implementation.</div>', unsafe_allow_html=True)
+
+# Professional Footer
+st.markdown("""
+<div class="footer-container">
+    <div class="footer-content">
+        <div class="footer-main">
+            <div class="footer-column">
+                <div class="footer-column-title">Product</div>
+                <div class="footer-links">
+                    <a onclick="window.location.href='?legal_page=Predictor'" class="footer-link" style="cursor:pointer;">Features</a>
+                    <a href="https://docs.aicretesolutions.com" class="footer-link" target="_blank">Documentation</a>
+                    <a href="https://api.aicretesolutions.com" class="footer-link" target="_blank">API</a>
+                    <a href="https://aicretesolutions.com/pricing" class="footer-link" target="_blank">Pricing</a>
+                </div>
+            </div>
+            <div class="footer-column">
+                <div class="footer-column-title">Company</div>
+                <div class="footer-links">
+                    <a href="https://aicretesolutions.com/about" class="footer-link" target="_blank">About</a>
+                    <a href="https://community.aicretesolutions.com" class="footer-link" target="_blank">Community</a>
+                    <a href="https://blog.aicretesolutions.com" class="footer-link" target="_blank">Blog</a>
+                    <a onclick="window.location.href='?legal_page=Contact'" class="footer-link" style="cursor:pointer;">Contact</a>
+                </div>
+            </div>
+            <div class="footer-column">
+                <div class="footer-column-title">Legal</div>
+                <div class="footer-links">
+                    <a onclick="window.location.href='?legal_page=Terms'" class="footer-link" style="cursor:pointer;">Terms</a>
+                    <a onclick="window.location.href='?legal_page=Privacy'" class="footer-link" style="cursor:pointer;">Privacy</a>
+                    <a onclick="window.location.href='?legal_page=Security'" class="footer-link" style="cursor:pointer;">Security</a>
+                    <a onclick="document.querySelector('html').scrollTop = 0" class="footer-link" style="cursor:pointer;">Manage Cookies</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-divider"></div>
+        <div class="footer-bottom">
+            <span class="footer-copyright">© 2026 AIcrete Solutions. All rights reserved.</span>
+            <div style="color:#718197; font-size:0.84rem;">
+                Built for the future of concrete engineering intelligence
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
