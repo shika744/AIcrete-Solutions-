@@ -116,30 +116,49 @@ def predict_strength(inputs: dict) -> float:
     return float(np.array(pred).reshape(-1)[0])
 
 
-def derived_properties(cs: float, standard: str):
-    fc = max(float(cs), 1.0)
-    if standard in ["Eurocode 2 (BS EN 1992-1-1)", "MS EN (Malaysia)"]:
+def derived_properties(cs_mpa: float, standard: str):
+    """Calculate derived properties based on compressive strength and selected standard.
+    
+    The AI provides the compressive strength prediction.
+    The standard controls the derived-property calculation formulas.
+    """
+    fc = max(float(cs_mpa), 1.0)
+    
+    if standard == "Eurocode 2 (BS EN 1992-1-1)":
+        fcm = fc + 8.0
+        E = 22.0 * ((fcm / 10.0) ** 0.30)  # GPa
+        ft = 0.30 * (fc ** (2 / 3)) if fc <= 50 else 2.12 * np.log(1 + fcm / 10.0)
+    
+    elif standard == "ACI 318":
+        E = 4.70 * np.sqrt(fc)
+        ft = 0.56 * np.sqrt(fc)
+    
+    elif standard == "JSCE (Japan)":
+        E = 4.70 * np.sqrt(fc)
+        ft = 0.56 * np.sqrt(fc)
+    
+    elif standard == "IS 456 (India)":
+        E = 5.00 * np.sqrt(fc)
+        ft = 0.70 * np.sqrt(fc)
+    
+    elif standard == "GB / China":
+        E = 4.20 * np.sqrt(fc)
+        ft = 0.395 * (fc ** 0.55)
+    
+    elif standard == "MS EN (Malaysia)":
         fcm = fc + 8.0
         E = 22.0 * ((fcm / 10.0) ** 0.30)
-        ft = 0.30 * (fc ** (2 / 3)) if fc <= 50 else 2.12 * math.log(1 + (fcm / 10.0))
-    elif standard == "ACI 318":
-        E = 4.70 * math.sqrt(fc)
-        ft = 0.62 * math.sqrt(fc)
-    elif standard == "IS 456 (India)":
-        E = 5.00 * math.sqrt(fc)
-        ft = 0.70 * math.sqrt(fc)
-    elif standard == "JSCE (Japan)":
-        E = 4.70 * math.sqrt(fc)
-        ft = 0.56 * math.sqrt(fc)
-    elif standard == "GB / China":
-        E = 4.20 * math.sqrt(fc)
-        ft = 0.395 * (fc ** 0.55)
+        ft = 0.30 * (fc ** (2 / 3)) if fc <= 50 else 2.12 * np.log(1 + fcm / 10.0)
+    
     else:
-        E = 22.0 * (((fc + 8.0) / 10.0) ** 0.30)
+        # Default to Eurocode 2
+        fcm = fc + 8.0
+        E = 22.0 * ((fcm / 10.0) ** 0.30)
         ft = 0.30 * (fc ** (2 / 3))
-    youngs = 0.95 * E
-    upv = math.sqrt((E * 1e9) / 2400.0) / 1000.0
-    return E, ft, youngs, upv
+    
+    density = 2400.0
+    upv = np.sqrt((E * 1e9) / density) / 1000.0
+    return E, ft, upv
 
 
 def extract_materials(inputs):
@@ -211,20 +230,53 @@ def carbon_status(carbon):
     return "High Carbon", "#ef4444"
 
 
-def compliance_cards(cs):
+def compliance_cards(cs_mpa: float, standard: str):
+    """Generate compliance checks based on compressive strength and selected standard.
+    
+    Each standard has its own compliance rules and thresholds.
+    """
+    # Standard-specific compliance thresholds
+    standard_rules = {
+        "Eurocode 2 (BS EN 1992-1-1)": [
+            {"name": "UHPC Target (120 MPa)", "threshold": 120, "category": "Ultra-high-performance"},
+            {"name": "High-Performance (100 MPa)", "threshold": 100, "category": "High-strength"},
+        ],
+        "ACI 318": [
+            {"name": "Structural UHPC (120 MPa)", "threshold": 120, "category": "Ultra-high-performance"},
+            {"name": "High-Strength (100 MPa)", "threshold": 100, "category": "High-strength"},
+        ],
+        "JSCE (Japan)": [
+            {"name": "High-Performance (120 MPa)", "threshold": 120, "category": "Advanced concrete"},
+            {"name": "Advanced (100 MPa)", "threshold": 100, "category": "High-strength"},
+        ],
+        "IS 456 (India)": [
+            {"name": "High-Performance (100 MPa)", "threshold": 100, "category": "Advanced concrete"},
+            {"name": "Advanced (120 MPa)", "threshold": 120, "category": "Ultra-high-performance"},
+        ],
+        "GB / China": [
+            {"name": "High-Performance (100 MPa)", "threshold": 100, "category": "Advanced concrete"},
+            {"name": "Advanced (120 MPa)", "threshold": 120, "category": "Ultra-high-performance"},
+        ],
+        "MS EN (Malaysia)": [
+            {"name": "UHPC Target (120 MPa)", "threshold": 120, "category": "Ultra-high-performance"},
+            {"name": "High-Performance (100 MPa)", "threshold": 100, "category": "High-strength"},
+        ],
+    }
+    
+    # Get rules for selected standard, default to Eurocode 2
+    rules = standard_rules.get(standard, standard_rules["Eurocode 2 (BS EN 1992-1-1)"])
+    
     out = []
-    for name, threshold in STANDARD_THRESHOLDS.items():
-        ok = cs >= threshold
-        out.append(
-            {
-                "name": name,
-                "threshold": threshold,
-                "ok": ok,
-                "note": "Compliant" if ok else "Not compliant",
-                "color": "#16a34a" if ok else "#ef4444",
-                "icon": "✓" if ok else "✕",
-            }
-        )
+    for rule in rules:
+        ok = cs_mpa >= rule["threshold"]
+        out.append({
+            "name": rule["name"],
+            "threshold": rule["threshold"],
+            "ok": ok,
+            "note": "Compliant" if ok else "Not compliant",
+            "color": "#16a34a" if ok else "#ef4444",
+            "icon": "✓" if ok else "✕",
+        })
     return out
 
 
@@ -247,8 +299,8 @@ def recommendation_summary(inputs, cs, carbon, cost):
 
 def evaluate_mix(inputs, standard):
     cs = predict_strength(inputs)
-    tensile, ft, youngs, upv = (None, None, None, None)
-    E, ft, youngs, upv = derived_properties(cs, standard)
+    E, ft, upv = derived_properties(cs, standard)
+    youngs = 0.95 * E  # Young's modulus approximation
     carbon = carbon_calc(inputs)
     cost = cost_calc(inputs)
     score = sustainability_score(cs, carbon, cost)
@@ -273,7 +325,7 @@ def evaluate_mix(inputs, standard):
         "strength_color": strength_color,
         "carbon_label": carbon_label,
         "carbon_color": carbon_color,
-        "compliance": compliance_cards(cs),
+        "compliance": compliance_cards(cs, standard),
         "recommendations": recs,
         "recommendation_note": expected,
     }
@@ -410,8 +462,9 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
             narrative_text = (
                 f"AIcrete Solutions predicted {result['cs']:.0f} MPa vs training reference {closest_actual:.0f} MPa "
                 f"— within {error_pct:.1f}% error. Model validation shows consistent accuracy across the dataset "
-                f"(MAPE = {metrics_data['mape']:.1f}%, R² = {metrics_data['r_squared']:.4f}). "
-                f"This prediction is reliable for preliminary engineering use."
+                f"(MAPE = {metrics_data['mape']:.1f}%, R² = {metrics_data['r_squared']:.4f}).\n\n"
+                f"Compressive strength is AI-predicted from the trained UHPC dataset. "
+                f"Standard selection ({result.get('standard', 'Not specified')}) changes derived-property equations and compliance checks."
             )
             pdf.multi_cell(0, 6, pdf_safe(narrative_text))
         
@@ -453,7 +506,14 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
 
         pdf.ln(5)
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("3. Mix Parameters"), ln=True)
+        pdf.cell(0, 8, pdf_safe("3. Design Standard"), ln=True)
+        pdf.set_font("Arial", "", 11)
+        pdf.cell(95, 8, pdf_safe("Standard Used"), 1)
+        pdf.cell(95, 8, pdf_safe(result.get("standard", "Not specified")), 1, ln=True)
+
+        pdf.ln(5)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 8, pdf_safe("4. Mix Parameters"), ln=True)
         pdf.set_font("Arial", "", 11)
         for k, v in result["inputs"].items():
             pdf.cell(95, 8, pdf_safe(k), 1)
@@ -461,14 +521,14 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
 
         pdf.ln(5)
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("4. Compliance Overview"), ln=True)
+        pdf.cell(0, 8, pdf_safe("5. Compliance Overview"), ln=True)
         pdf.set_font("Arial", "", 11)
         for item in result["compliance"]:
             pdf.multi_cell(0, 6, pdf_safe(f"{item['name']}: {item['note']} (Min {item['threshold']} MPa)"))
 
         pdf.ln(2)
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("5. AI Recommendation"), ln=True)
+        pdf.cell(0, 8, pdf_safe("6. AI Recommendation"), ln=True)
         pdf.set_font("Arial", "", 11)
         for rec in result["recommendations"]:
             pdf.multi_cell(0, 6, pdf_safe(f"- {rec}"))
@@ -477,7 +537,7 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
         # Performance Charts Page
         pdf.add_page()
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("6. Predicted vs Actual Strength"), ln=True)
+        pdf.cell(0, 8, pdf_safe("7. Predicted vs Actual Strength"), ln=True)
         if metrics_data and os.path.exists(pred_vs_actual_png):
             y = pdf.get_y()
             pdf.image(pred_vs_actual_png, x=22, y=y+3, w=165)
@@ -485,7 +545,7 @@ def generate_pdf(result, filename="AIcrete_Report.pdf"):
         
         pdf.ln(4)
         pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 8, pdf_safe("7. Performance vs Carbon"), ln=True)
+        pdf.cell(0, 8, pdf_safe("8. Performance vs Carbon"), ln=True)
         y = pdf.get_y()
         if os.path.exists(perf_vs_carbon_png):
             pdf.image(perf_vs_carbon_png, x=22, y=y+3, w=165)
@@ -595,7 +655,6 @@ def generate_prediction_narrative(predicted_strength, metrics_data):
     # Find a similar actual value from the training data for comparison
     closest_idx = np.argmin(np.abs(metrics_data["y_true"] - predicted_strength))
     closest_actual = metrics_data["y_true"][closest_idx]
-    closest_pred = metrics_data["y_pred"][closest_idx]
     
     # Calculate error for this prediction
     error_pct = abs(predicted_strength - closest_actual) / closest_actual * 100 if closest_actual != 0 else 0
@@ -612,7 +671,8 @@ def generate_prediction_narrative(predicted_strength, metrics_data):
         f"— {range_text}. "
         f"Model validation shows consistent accuracy across the dataset "
         f"(MAPE ≈ <strong>{mape:.1f}%</strong>, R² = <strong>{metrics_data['r_squared']:.4f}</strong>). "
-        f"This prediction is <strong>{'reliable' if within_range else 'borderline'}</strong> for preliminary engineering use."
+        f"<br><br><em>Compressive strength is AI-predicted from the trained UHPC dataset. "
+        f"Standard selection changes derived-property equations and compliance checks.</em>"
         f"</div>"
     )
     return narrative
