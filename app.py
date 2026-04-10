@@ -466,6 +466,40 @@ def shap_values(explainer, xdf):
     return np.array(vals)
 
 
+@st.cache_data
+def calculate_model_metrics():
+    """Calculate RMSE, MAPE, and R² metrics on training data."""
+    try:
+        # Get predictions on training data
+        X_train = DF[FEATURE_COLS].apply(pd.to_numeric, errors="coerce").fillna(0.0)
+        y_true = DF[TARGET_COL].apply(pd.to_numeric, errors="coerce").fillna(0.0).values
+        
+        try:
+            y_pred = MODEL.predict(X_train).reshape(-1)
+        except Exception:
+            y_pred = np.array([predict_strength({col: X_train.iloc[i][col] for col in FEATURE_COLS}) 
+                              for i in range(len(X_train))]).reshape(-1)
+        
+        # Calculate metrics
+        rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+        mape = np.mean(np.abs((y_true - y_pred) / (np.abs(y_true) + 1e-6))) * 100
+        ss_res = np.sum((y_true - y_pred) ** 2)
+        ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+        r_squared = 1 - (ss_res / (ss_tot + 1e-6))
+        
+        return {
+            "rmse": rmse,
+            "mape": mape,
+            "r_squared": r_squared,
+            "y_true": y_true,
+            "y_pred": y_pred,
+            "X_train": X_train
+        }
+    except Exception as e:
+        st.warning(f"Could not calculate metrics: {e}")
+        return None
+
+
 if "latest_result" not in st.session_state:
     st.session_state.latest_result = None
 if "optimizer_result" not in st.session_state:
@@ -621,7 +655,7 @@ def render_result_summary(result, show_save=True):
                 metric_card(item[0], item[1], item[2])
 
     with right:
-        tabs = st.tabs(["Compliance", "Sustainability", "Interpretability", "Age Curve"])
+        tabs = st.tabs(["Compliance", "Sustainability", "Interpretability", "Age Curve", "✅ Model Performance"])
         with tabs[0]:
             render_compliance(result)
             st.markdown(
@@ -690,6 +724,111 @@ def render_result_summary(result, show_save=True):
             fig = px.line(curve_df, x="Age", y="Strength", markers=True, title="Indicative Age Curve")
             fig.update_layout(paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#16324f"))
             st.plotly_chart(fig, use_container_width=True)
+        with tabs[4]:
+            st.markdown("### ✅ Model Performance Metrics")
+            metrics_data = calculate_model_metrics()
+            if metrics_data:
+                mc1, mc2, mc3 = st.columns(3)
+                with mc1:
+                    st.metric("✅ RMSE", f"{metrics_data['rmse']:.2f} MPa", 
+                              "Root Mean Square Error\n(lower is better)")
+                with mc2:
+                    st.metric("✅ MAPE", f"{metrics_data['mape']:.2f} %", 
+                              "Mean Absolute Percentage Error\n(lower is better)")
+                with mc3:
+                    st.metric("✅ R²", f"{metrics_data['r_squared']:.4f}", 
+                              "Coefficient of Determination\n(closer to 1 is better)")
+                
+                st.markdown("---")
+                st.markdown("### Predicted vs Actual")
+                
+                # Create scatter plot
+                pred_actual_df = pd.DataFrame({
+                    "Actual": metrics_data["y_true"],
+                    "Predicted": metrics_data["y_pred"],
+                })
+                
+                fig_scatter = go.Figure()
+                fig_scatter.add_trace(go.Scatter(
+                    x=metrics_data["y_true"],
+                    y=metrics_data["y_pred"],
+                    mode="markers",
+                    marker=dict(size=8, color="#0ea5e9", opacity=0.6),
+                    text=[f"Actual: {actual:.1f}<br>Predicted: {pred:.1f}" 
+                          for actual, pred in zip(metrics_data["y_true"], metrics_data["y_pred"])],
+                    hovertemplate="<b>%{text}</b><extra></extra>",
+                    name="Predictions"
+                ))
+                
+                # Add perfect prediction line
+                min_val = min(metrics_data["y_true"].min(), metrics_data["y_pred"].min())
+                max_val = max(metrics_data["y_true"].max(), metrics_data["y_pred"].max())
+                fig_scatter.add_trace(go.Scatter(
+                    x=[min_val, max_val],
+                    y=[min_val, max_val],
+                    mode="lines",
+                    line=dict(color="#ef4444", dash="dash"),
+                    name="Perfect Prediction"
+                ))
+                
+                fig_scatter.update_layout(
+                    title="Predicted vs Actual Strength (Training Data)",
+                    xaxis_title="Actual Strength (MPa)",
+                    yaxis_title="Predicted Strength (MPa)",
+                    paper_bgcolor="white",
+                    plot_bgcolor="white",
+                    font=dict(color="#16324f"),
+                    hovermode="closest",
+                    showlegend=True,
+                    height=500
+                )
+                st.plotly_chart(fig_scatter, use_container_width=True)
+                
+                # Distribution comparison
+                st.markdown("### Distribution Comparison")
+                dist_col1, dist_col2 = st.columns(2)
+                with dist_col1:
+                    fig_hist_actual = px.histogram(
+                        x=metrics_data["y_true"],
+                        nbins=30,
+                        title="Actual Strength Distribution",
+                        labels={"x": "Strength (MPa)", "count": "Frequency"}
+                    )
+                    fig_hist_actual.update_layout(paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#16324f"))
+                    st.plotly_chart(fig_hist_actual, use_container_width=True)
+                with dist_col2:
+                    fig_hist_pred = px.histogram(
+                        x=metrics_data["y_pred"],
+                        nbins=30,
+                        title="Predicted Strength Distribution",
+                        labels={"x": "Strength (MPa)", "count": "Frequency"}
+                    )
+                    fig_hist_pred.update_layout(paper_bgcolor="white", plot_bgcolor="white", font=dict(color="#16324f"))
+                    st.plotly_chart(fig_hist_pred, use_container_width=True)
+                
+                # Statistics
+                st.markdown("### Statistics")
+                stats_df = pd.DataFrame({
+                    "Metric": ["Mean", "Median", "Std Dev", "Min", "Max"],
+                    "Actual": [
+                        metrics_data["y_true"].mean(),
+                        np.median(metrics_data["y_true"]),
+                        metrics_data["y_true"].std(),
+                        metrics_data["y_true"].min(),
+                        metrics_data["y_true"].max()
+                    ],
+                    "Predicted": [
+                        metrics_data["y_pred"].mean(),
+                        np.median(metrics_data["y_pred"]),
+                        metrics_data["y_pred"].std(),
+                        metrics_data["y_pred"].min(),
+                        metrics_data["y_pred"].max()
+                    ]
+                })
+                stats_df = stats_df.round(2)
+                st.dataframe(stats_df, use_container_width=True, hide_index=True)
+            else:
+                st.warning("Could not load model metrics data.")
 
     if show_save:
         c1, c2, c3 = st.columns([1, 1, 2])
