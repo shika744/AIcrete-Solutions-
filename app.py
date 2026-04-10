@@ -713,8 +713,18 @@ with st.sidebar:
     )
 
 st.markdown('<div style="height:0.55rem;"></div>', unsafe_allow_html=True)
-st.markdown(f'<div class="main-title" style="padding-top:0.45rem;padding-bottom:0.2rem;line-height:1.28;min-height:3.9rem;">{APP_NAME}</div>', unsafe_allow_html=True)
-st.markdown('<div class="main-sub">Low-Carbon Concrete Decision Intelligence</div>', unsafe_allow_html=True)
+
+# Logo and Title Header
+if logo_exists():
+    logo_col, title_col = st.columns([0.15, 1], gap="medium")
+    with logo_col:
+        st.image(LOGO_NAME, use_container_width=True)
+    with title_col:
+        st.markdown(f'<div class="main-title" style="padding-top:0.45rem;padding-bottom:0.2rem;line-height:1.28;min-height:3.9rem;">{APP_NAME}</div>', unsafe_allow_html=True)
+        st.markdown('<div class="main-sub">Low-Carbon Concrete Decision Intelligence</div>', unsafe_allow_html=True)
+else:
+    st.markdown(f'<div class="main-title" style="padding-top:0.45rem;padding-bottom:0.2rem;line-height:1.28;min-height:3.9rem;">{APP_NAME}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-sub">Low-Carbon Concrete Decision Intelligence</div>', unsafe_allow_html=True)
 
 
 def input_grid(prefix, defaults=None):
